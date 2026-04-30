@@ -1,6 +1,5 @@
-# Build from parent directory containing both repos, e.g.:
-#   cd ..   # cd to folder that has custom-ballspotting/ and ballspot-challenge-api/
-#   docker build -f ballspot-challenge-api/Dockerfile -t ballspot-challenge:latest .
+# Build from the repository root:
+#   docker build -t ballspot-challenge:latest .
 
 FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
@@ -18,10 +17,12 @@ COPY ballspot-challenge-api /workspace/ballspot-challenge-api
 WORKDIR /workspace/ballspot-challenge-api
 RUN pip install --no-cache-dir .
 
-EXPOSE 8000
+# Typically `*.pt` is `.dockerignored` — mount the checkpoint file at runtime to match `model_checkpoint_path` in `config/app.json`.
+# Mount the checkpoint so it matches `model_checkpoint_path` in committed `config/app.json`, e.g.:
+#   custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260429_193215_best.pt
+# Or bind-mount config/app.json. See README.md.
 
-# Set at runtime (or bake a COPY checkpoint into the image).
-ENV MODEL_CHECKPOINT_PATH=""
+EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

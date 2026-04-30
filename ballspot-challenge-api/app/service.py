@@ -13,7 +13,7 @@ from custom_ballspotting.actions import NUM_ACTION_CLASSES
 from custom_ballspotting.inference import infer_video, resolve_infer_video_params
 from custom_ballspotting.model.tdeed import CustomTDeedModule
 
-from app.settings import Settings
+from app.settings import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -71,33 +71,44 @@ def predictions_to_frames(raw: dict, fps: float) -> list[tuple[int, str, float]]
     return out
 
 
-def build_infer_kw(settings: Settings) -> dict[str, object]:
+def build_infer_kw(cfg: AppConfig) -> dict[str, object]:
     return {
-        "clip_frames_count": settings.inference_clip_frames_count,
-        "overlap": settings.inference_overlap,
-        "stride": settings.inference_stride,
-        "frame_target_width": settings.inference_frame_target_width,
-        "frame_target_height": settings.inference_frame_target_height,
-        "val_batch_size": settings.inference_val_batch_size,
-        "inference_threshold": settings.inference_threshold,
-        "device": settings.inference_device,
-        "num_workers": settings.inference_num_workers if settings.inference_num_workers is not None else 0,
-        "frame_write_workers": settings.inference_frame_write_workers
-        if settings.inference_frame_write_workers is not None
+        "clip_frames_count": cfg.inference_clip_frames_count,
+        "overlap": cfg.inference_overlap,
+        "stride": cfg.inference_stride,
+        "frame_target_width": cfg.inference_frame_target_width,
+        "frame_target_height": cfg.inference_frame_target_height,
+        "features_model_name": cfg.inference_features_model_name,
+        "temporal_shift_mode": cfg.inference_temporal_shift_mode,
+        "n_layers": cfg.inference_n_layers,
+        "sgp_ks": cfg.inference_sgp_ks,
+        "sgp_k": cfg.inference_sgp_k,
+        "gaussian_blur_kernel_size": cfg.inference_gaussian_blur_kernel_size,
+        "val_batch_size": cfg.inference_val_batch_size,
+        "inference_threshold": cfg.inference_threshold,
+        "device": cfg.inference_device,
+        "num_workers": cfg.inference_num_workers if cfg.inference_num_workers is not None else 0,
+        "frame_write_workers": cfg.inference_frame_write_workers
+        if cfg.inference_frame_write_workers is not None
         else 8,
     }
 
 
-def resolve_merged_params(settings: Settings) -> dict:
-    """Geometry + device resolved the same way ``infer_video`` does (no DataLoader keys)."""
-    kw = build_infer_kw(settings)
+def resolve_merged_params(cfg: AppConfig) -> dict:
+    kw = build_infer_kw(cfg)
     return resolve_infer_video_params(
-        settings.model_checkpoint_path,
+        cfg.model_checkpoint_path,
         clip_frames_count=kw["clip_frames_count"],
         overlap=kw["overlap"],
         stride=kw["stride"],
         frame_target_width=kw["frame_target_width"],
         frame_target_height=kw["frame_target_height"],
+        features_model_name=kw["features_model_name"],
+        temporal_shift_mode=kw["temporal_shift_mode"],
+        n_layers=kw["n_layers"],
+        sgp_ks=kw["sgp_ks"],
+        sgp_k=kw["sgp_k"],
+        gaussian_blur_kernel_size=kw["gaussian_blur_kernel_size"],
         val_batch_size=kw["val_batch_size"],
         inference_threshold=kw["inference_threshold"],
         device=kw["device"],
@@ -105,11 +116,11 @@ def resolve_merged_params(settings: Settings) -> dict:
     )
 
 
-def load_hot_model(settings: Settings):
+def load_hot_model(cfg: AppConfig):
     """Load weights once + one warm-up forward (matches ``infer_video`` geometry)."""
     import torch
 
-    merged = resolve_merged_params(settings)
+    merged = resolve_merged_params(cfg)
 
     device = merged["device"]
     model = CustomTDeedModule(
@@ -122,7 +133,7 @@ def load_hot_model(settings: Settings):
         temporal_shift_mode=merged["temporal_shift_mode"],
         gaussian_blur_ks=merged["gaussian_blur_kernel_size"],
     )
-    model.load_all(settings.model_checkpoint_path)
+    model.load_all(cfg.model_checkpoint_path)
     model.to(device)
     model.eval()
 
@@ -142,11 +153,11 @@ def load_hot_model(settings: Settings):
     return model
 
 
-def run_inference(video_path: str, settings: Settings, hot_model) -> dict:
-    kw = build_infer_kw(settings)
+def run_inference(video_path: str, cfg: AppConfig, hot_model) -> dict:
+    kw = build_infer_kw(cfg)
     return infer_video(
         video_path=video_path,
-        model_checkpoint_path=settings.model_checkpoint_path,
+        model_checkpoint_path=cfg.model_checkpoint_path,
         output_path=None,
         model=hot_model,
         extract_frames=True,

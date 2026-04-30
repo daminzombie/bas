@@ -15,23 +15,24 @@ from app.service import (
     run_inference,
     video_fps,
 )
-from app.settings import Settings
+from app.settings import AppConfig, load_app_config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 _executor: ThreadPoolExecutor | None = None
 _hot_model = None
-_settings: Settings | None = None
+_app_config: AppConfig | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _executor, _hot_model, _settings
-    _settings = Settings()
+    global _executor, _hot_model, _app_config
+    cfg, _ = load_app_config()
+    _app_config = cfg
     _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="infer")
-    logger.info("Loading checkpoint from %s …", _settings.model_checkpoint_path)
-    _hot_model = load_hot_model(_settings)
+    logger.info("Loading checkpoint from %s …", _app_config.model_checkpoint_path)
+    _hot_model = load_hot_model(_app_config)
     yield
     if _executor:
         _executor.shutdown(wait=False)
@@ -46,14 +47,16 @@ async def health():
 
 
 def _process_challenge_sync(payload: ChallengeRequest) -> ChallengeResponse:
-    assert _settings is not None and _hot_model is not None
+    assert _app_config is not None and _hot_model is not None
     t0 = time.perf_counter()
     url = payload.video_url
     if not url:
         raise ValueError("video_url is required (per-challenge frames mode not enabled)")
 
-    vp = download_video(url, _settings.cache_dir, _settings.download_timeout_seconds)
-    raw = run_inference(vp, _settings, _hot_model)
+    vp = download_video(
+        url, _app_config.cache_dir, _app_config.download_timeout_seconds
+    )
+    raw = run_inference(vp, _app_config, _hot_model)
     fps = video_fps(vp)
     rows = predictions_to_frames(raw, fps)
     preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, c in rows]

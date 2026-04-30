@@ -1,45 +1,11 @@
 # Challenge API
 
-FastAPI `/challenge` endpoint that downloads a soccer clip URL and runs `custom-ballspotting` inference.
+Fast **`POST /challenge`** service: downloads `video_url`, runs **`custom-ballspotting`**, returns per-frame-ish predictions (`frame`, `action`, `confidence`) and **`processing_time`**.
 
-## Layout
+**`config/app.json`** is committed with production defaults (checkpoint path resolves **relative to the `config/` folder**, e.g. **`../../custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260429_193215_best.pt`**). **`config/app.example.json`** mirrors it for documentation.
 
-Place this repo **beside** `custom-ballspotting` (sibling folders). The Docker image copies both directories in one build.
+Workspace docs (Docker, checkpoints, submodule): **[`../README.md`](../README.md)**.
 
-```text
-parent/
-├── custom-ballspotting/     # inference package (not on PyPI)
-└── ballspot-challenge-api/  # this service
-```
+`frames`-based payloads validate but **`POST /challenge`** returns **501** when `frames` is set (URL-only flow for now).
 
-## Local dev
-
-```bash
-cd custom-ballspotting && pip install -e .
-cd ../ballspot-challenge-api && pip install -e .
-
-export MODEL_CHECKPOINT_PATH=/path/to/best.pt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Optional env vars: `INFERENCE_FRAME_TARGET_HEIGHT`, `INFERENCE_VAL_BATCH_SIZE`, `CACHE_DIR`, etc. (see `app/settings.py`).
-
-## Docker
-
-From the parent directory that contains **both** folders:
-
-```bash
-docker build -f ballspot-challenge-api/Dockerfile -t ballspot-challenge:latest .
-docker run --gpus all -e MODEL_CHECKPOINT_PATH=/weights/best.pt -v /your/weights:/weights -p 8000:8000 ballspot-challenge:latest
-```
-
-## Request
-
-POST `/challenge`
-
-```json
-{
-  "challenge_id": "abc",
-  "video_url": "https://example.com/clip.mp4"
-}
-```
+The **`Dockerfile`** lives at the **repository root**; build context copies this package including **`config/app.json`** (weights are mounted at run time unless you relax `.dockerignore`).

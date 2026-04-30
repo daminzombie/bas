@@ -1,0 +1,19 @@
+{
+  "model_checkpoint_path": "../../custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260429_193215_best.pt",
+  "cache_dir": "/tmp/ballspot_challenge_cache",
+  "download_timeout_seconds": 600,
+  "inference_clip_frames_count": 100,
+  "inference_overlap": 68,
+  "inference_stride": 2,
+  "inference_frame_target_width": 720,
+  "inference_frame_target_height": 720,
+  "inference_features_model_name": "regnety_008",
+  "inference_temporal_shift_mode": "gsf",
+  "inference_n_layers": 2,
+  "inference_sgp_ks": 9,
+  "inference_sgp_k": 4,
+  "inference_val_batch_size": 2,
+  "inference_threshold": 0.2,
+  "inference_num_workers": 2,
+  "inference_frame_write_workers": 8
+}
