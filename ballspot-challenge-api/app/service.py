@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import math
 import os
 import tempfile
 from pathlib import Path
@@ -59,10 +60,25 @@ def video_fps(video_path: str) -> float:
         cap.release()
 
 
-def predictions_to_frames(raw: dict, fps: float) -> list[tuple[int, str, float]]:
+def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[tuple[int, str, float]]:
+    """Map ``infer_video`` JSON rows to ``(frame_index, label, confidence)``.
+
+    Uses ``raw["fps"]`` when present (same value as :func:`scores_to_predictions`
+    used inside ``infer_video``), so frame indices match the scoring raster.
+    ``video_probe_fps`` is a fallback if ``fps`` is missing (older callers).
+    """
+    inferred = raw.get("fps")
+    if inferred is not None:
+        fps = float(inferred)
+    else:
+        fps = float(video_probe_fps)
+    if not math.isfinite(fps) or fps <= 0:
+        fps = 25.0
+
     out: list[tuple[int, str, float]] = []
     for p in raw.get("predictions", []):
         pos_ms = int(p["position"])
+        # Invert scores_to_predictions: position = int(frame_idx / fps * 1000)
         frame = max(0, int(round(pos_ms / 1000.0 * fps)))
         confidence = float(p["confidence"])
         confidence = max(0.0, min(1.0, confidence))

@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException
 
+from app.postprocessing import PostProcessFn, build_post_processing_pipeline
 from app.schemas import ChallengeRequest, ChallengeResponse, FramePrediction
 from app.service import (
     download_video,
@@ -23,13 +24,15 @@ logger = logging.getLogger(__name__)
 _executor: ThreadPoolExecutor | None = None
 _hot_model = None
 _app_config: AppConfig | None = None
+_post_process: PostProcessFn | None = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _executor, _hot_model, _app_config
+    global _executor, _hot_model, _app_config, _post_process
     cfg, _ = load_app_config()
     _app_config = cfg
+    _post_process = build_post_processing_pipeline(_app_config)
     _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="infer")
     logger.info("Loading checkpoint from %s …", _app_config.model_checkpoint_path)
     _hot_model = load_hot_model(_app_config)
@@ -47,7 +50,7 @@ async def health():
 
 
 def _process_challenge_sync(payload: ChallengeRequest) -> ChallengeResponse:
-    assert _app_config is not None and _hot_model is not None
+    assert _app_config is not None and _hot_model is not None and _post_process is not None
     t0 = time.perf_counter()
     url = payload.video_url
     if not url:
@@ -59,6 +62,7 @@ def _process_challenge_sync(payload: ChallengeRequest) -> ChallengeResponse:
     raw = run_inference(vp, _app_config, _hot_model)
     fps = video_fps(vp)
     rows = predictions_to_frames(raw, fps)
+    rows = _post_process(rows)
     preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, c in rows]
 
     return ChallengeResponse(
