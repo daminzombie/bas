@@ -1,0 +1,3 @@
+[submodule "custom-ballspotting"]
+	path = custom-ballspotting
+	url = https://github.com/daminzombie/custom-ballspotting.git
