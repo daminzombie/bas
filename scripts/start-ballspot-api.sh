@@ -19,8 +19,7 @@
 #
 # Alternative: run this script (uvicorn must be on PATH — less reliable for systemd/pm2):
 #
-#   pm2 start /absolute/path/to/bas/scripts/start-ballspot-api.sh \
-#     --name ballspot-api --interpreter bash
+#   pm2 start scripts/start-ballspot-api.sh --name ballspot-api --interpreter bash
 #
 # Logs / lifecycle:
 #
@@ -42,4 +41,4 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}/ballspot-challenge-api"
 
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec uvicorn app.main:app --host 0.0.0.0 --port 40069
