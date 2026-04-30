@@ -19,7 +19,7 @@ bas/
 **With submodules** (recommended — you get `custom-ballspotting` checked out):
 
 ```bash
-git clone --recurse-submodules <your-bas-repo-url> bas
+git clone --recurse-submodules https://github.com/daminzombie/bas.git
 cd bas
 ```
 
