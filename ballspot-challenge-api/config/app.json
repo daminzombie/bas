@@ -3,7 +3,7 @@
   "cache_dir": "../../tmp/ballspot_challenge_cache",
   "download_timeout_seconds": 600,
   "inference_clip_frames_count": 100,
-  "inference_overlap": 68,
+  "inference_overlap": 20,
   "inference_stride": 2,
   "inference_frame_target_width": 720,
   "inference_frame_target_height": 720,

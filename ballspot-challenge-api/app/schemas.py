@@ -37,3 +37,10 @@ class ChallengeResponse(BaseModel):
     challenge_id: str
     predictions: list[FramePrediction] = Field(default_factory=list)
     processing_time: float
+
+
+class RawChallengeResponse(BaseModel):
+    challenge_id: str
+    predictions: list[FramePrediction] = Field(default_factory=list)
+    raw_predictions: list[FramePrediction] = Field(default_factory=list)
+    processing_time: float
