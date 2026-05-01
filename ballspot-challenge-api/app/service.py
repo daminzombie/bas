@@ -91,12 +91,13 @@ def video_fps(video_path: str) -> float:
         cap.release()
 
 
-def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[tuple[int, str, float]]:
-    """Map ``infer_video`` JSON rows to ``(frame_index, label, confidence)``.
+def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[tuple[int, str, str, float]]:
+    """Map ``infer_video`` JSON rows to ``(frame_index, label, team, confidence)``.
 
     Uses ``raw["fps"]`` when present (same value as :func:`scores_to_predictions`
     used inside ``infer_video``), so frame indices match the scoring raster.
     ``video_probe_fps`` is a fallback if ``fps`` is missing (older callers).
+    Team defaults to ``"left"`` for any prediction that does not carry a ``"team"`` field.
     """
     inferred = raw.get("fps")
     if inferred is not None:
@@ -106,15 +107,16 @@ def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[tuple[int, 
     if not math.isfinite(fps) or fps <= 0:
         fps = 25.0
 
-    out: list[tuple[int, str, float]] = []
+    out: list[tuple[int, str, str, float]] = []
     for p in raw.get("predictions", []):
         pos_ms = int(p["position"])
         # Invert scores_to_predictions: position = int(frame_idx / fps * 1000)
         frame = max(0, int(round(pos_ms / 1000.0 * fps)))
         confidence = float(p["confidence"])
         confidence = max(0.0, min(1.0, confidence))
-        out.append((frame, str(p["label"]), confidence))
-    out.sort(key=lambda t: (t[0], -t[2]))
+        team = str(p.get("team", "left"))
+        out.append((frame, str(p["label"]), team, confidence))
+    out.sort(key=lambda t: (t[0], -t[3]))
     return out
 
 

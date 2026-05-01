@@ -17,6 +17,6 @@ class ActionLabelRewriteStep:
     def __init__(self) -> None:
         self._table = dict(DEFAULT_ACTION_LABEL_REWRITES)
 
-    def __call__(self, rows: list[tuple[int, str, float]]) -> list[tuple[int, str, float]]:
+    def __call__(self, rows: list[tuple[int, str, str, float]]) -> list[tuple[int, str, str, float]]:
         t = self._table
-        return [(frame, t.get(action, action), conf) for frame, action, conf in rows]
+        return [(frame, t.get(action, action), team, conf) for frame, action, team, conf in rows]

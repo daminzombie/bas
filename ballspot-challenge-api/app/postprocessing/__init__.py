@@ -10,7 +10,7 @@ from app.postprocessing.action_labels import (
     ActionLabelRewriteStep,
 )
 
-PredictionRow: TypeAlias = tuple[int, str, float]
+PredictionRow: TypeAlias = tuple[int, str, str, float]  # (frame, action, team, confidence)
 PostProcessFn: TypeAlias = Callable[[list[PredictionRow]], list[PredictionRow]]
 
 

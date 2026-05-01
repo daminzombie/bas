@@ -65,8 +65,8 @@ def _run_challenge_pipeline(
     fps = video_fps(vp)
     rows_before_post = predictions_to_frames(infer_out, fps)
     rows_after_post = _post_process(list(rows_before_post))
-    preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, c in rows_after_post]
-    raw_preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, c in rows_before_post]
+    preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c in rows_after_post]
+    raw_preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c in rows_before_post]
     elapsed = time.perf_counter() - t0
     return preds, raw_preds, elapsed
 
