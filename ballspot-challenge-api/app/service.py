@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import tempfile
+import time
 from pathlib import Path
 
 import cv2
@@ -17,6 +18,34 @@ from custom_ballspotting.model.tdeed import CustomTDeedModule
 from app.settings import AppConfig
 
 logger = logging.getLogger(__name__)
+
+# Windows raises WinError 32 (sharing violation) if another process briefly holds the
+# file handle after download (Defender indexing, explorer, deferred close).
+_REPLACE_RETRIES = 40
+_REPLACE_RETRY_SLEEP_S = 0.05
+
+
+def _retry_os_replace(src: Path, dst: Path) -> None:
+    for attempt in range(_REPLACE_RETRIES):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt >= _REPLACE_RETRIES - 1:
+                raise
+            time.sleep(_REPLACE_RETRY_SLEEP_S)
+
+
+def _best_effort_unlink(path: Path) -> None:
+    for attempt in range(_REPLACE_RETRIES):
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError:
+            if attempt >= _REPLACE_RETRIES - 1:
+                logger.warning("Could not remove temp download file %s (still locked).", path)
+                return
+            time.sleep(_REPLACE_RETRY_SLEEP_S)
 
 
 def _url_digest(url: str) -> str:
@@ -43,9 +72,11 @@ def download_video(url: str, cache_dir: str, timeout: float) -> str:
             with tmp_path.open("wb") as out:
                 for chunk in r.iter_bytes(1024 * 1024):
                     out.write(chunk)
-        os.replace(tmp_path, video_path)
+                out.flush()
+                os.fsync(out.fileno())
+        _retry_os_replace(tmp_path, video_path)
     except Exception:
-        tmp_path.unlink(missing_ok=True)
+        _best_effort_unlink(tmp_path)
         raise
 
     return str(video_path.resolve())
