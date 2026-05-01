@@ -1,6 +1,6 @@
 {
   "model_checkpoint_path": "../../custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260429_193215_best.pt",
-  "cache_dir": "/tmp/ballspot_challenge_cache",
+  "cache_dir": "../../tmp/ballspot_challenge_cache",
   "download_timeout_seconds": 600,
   "inference_clip_frames_count": 100,
   "inference_overlap": 68,
