@@ -186,6 +186,19 @@ class ConfusablePairResolutionStep:
             require_same_team=True,
         )
 
+        # A shot is visually a kick/contact event, so the model can emit a nearby
+        # pass for the same touch.  Since shot is more expensive, keep it only when
+        # it is meaningfully stronger; otherwise prefer the lower-risk pass.
+        self._resolve_pair(
+            ordered,
+            keep,
+            action_a="pass",
+            action_b="shot",
+            window_frames=6,
+            prefer_b_margin=0.10,
+            require_same_team=True,
+        )
+
         # Block/save both require a shot.  If both are present for the same stop,
         # keep the stronger one rather than paying two high unmatched penalties.
         self._resolve_pair(

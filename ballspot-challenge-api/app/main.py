@@ -8,7 +8,13 @@ import httpx
 from fastapi import FastAPI, HTTPException
 
 from app.postprocessing import PostProcessFn, build_post_processing_pipeline
-from app.schemas import ChallengeRequest, ChallengeResponse, FramePrediction, RawChallengeResponse
+from app.schemas import (
+    ChallengeRequest,
+    ChallengeResponse,
+    FramePrediction,
+    RawChallengeResponse,
+    RawFramePrediction,
+)
 from app.service import (
     download_video,
     load_hot_model,
@@ -51,7 +57,7 @@ async def health():
 
 def _run_challenge_pipeline(
     payload: ChallengeRequest,
-) -> tuple[list[FramePrediction], list[FramePrediction], float]:
+) -> tuple[list[FramePrediction], list[RawFramePrediction], float]:
     assert _app_config is not None and _hot_model is not None and _post_process is not None
     t0 = time.perf_counter()
     url = payload.video_url
@@ -66,7 +72,10 @@ def _run_challenge_pipeline(
     rows_before_post = predictions_to_frames(infer_out, fps)
     rows_after_post = _post_process(list(rows_before_post))
     preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c in rows_after_post]
-    raw_preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c in rows_before_post]
+    raw_preds = [
+        RawFramePrediction(frame=f, action=a, team=team, confidence=c)
+        for f, a, team, c in rows_before_post
+    ]
     elapsed = time.perf_counter() - t0
     return preds, raw_preds, elapsed
 

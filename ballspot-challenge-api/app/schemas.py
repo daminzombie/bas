@@ -7,6 +7,10 @@ class FramePrediction(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
+class RawFramePrediction(FramePrediction):
+    team: str
+
+
 class ChallengeFrame(BaseModel):
     frame_id: int = Field(ge=0)
     url: str | None = None
@@ -42,5 +46,5 @@ class ChallengeResponse(BaseModel):
 class RawChallengeResponse(BaseModel):
     challenge_id: str
     predictions: list[FramePrediction] = Field(default_factory=list)
-    raw_predictions: list[FramePrediction] = Field(default_factory=list)
+    raw_predictions: list[RawFramePrediction] = Field(default_factory=list)
     processing_time: float

@@ -25,6 +25,33 @@ DEFAULT_SAME_ACTION_WINDOWS: dict[str, int] = {
     "goal": 12,
 }
 
+# Actions that should be unique at a moment after team is ignored.  Keep
+# ``aerial_duel`` out: the labeling definition allows one event per involved player,
+# so opposite-team close predictions may be legitimate.
+DEFAULT_TEAM_CONFLICT_ACTIONS: frozenset[str] = frozenset(
+    {
+        "pass",
+        "pass_received",
+        "free_kick",
+        "goal_kick",
+        "corner",
+        "throw_in",
+        "recovery",
+        "tackle",
+        "interception",
+        "ball_out_of_play",
+        "clearance",
+        "take_on",
+        "block",
+        "shot",
+        "save",
+        "foul",
+        "goal",
+    }
+)
+
+DEFAULT_FINAL_DEDUPE_ACTIONS: frozenset[str] = DEFAULT_TEAM_CONFLICT_ACTIONS
+
 
 class SameActionTemporalDedupeStep:
     """Remove repeated peaks for the same raw action/team without merging valid sequences."""
@@ -45,6 +72,72 @@ class SameActionTemporalDedupeStep:
         for (action, _team), action_rows in by_key.items():
             window = self._windows.get(action, 6)
             kept.extend(_nms_rows(action_rows, window))
+
+        return sorted(kept, key=lambda row: (row[0], -row[3], row[1], row[2]))
+
+
+class TeamConflictResolutionStep:
+    """Resolve same-action opposite-team duplicates before team is dropped.
+
+    The model often predicts the right action time for both team heads.  Since the
+    challenge response does not carry team, keeping both creates an unmatched penalty
+    for the lower-confidence copy.  This step is deliberately action-scoped and skips
+    ``aerial_duel`` because multiple duel events can be valid at the same moment.
+    """
+
+    __slots__ = ("_actions", "_windows")
+
+    def __init__(
+        self,
+        actions: frozenset[str] = DEFAULT_TEAM_CONFLICT_ACTIONS,
+        windows: dict[str, int] | None = None,
+    ) -> None:
+        self._actions = actions
+        self._windows = dict(DEFAULT_SAME_ACTION_WINDOWS)
+        self._windows.update(windows or {})
+
+    def __call__(self, rows: list[PredictionRow]) -> list[PredictionRow]:
+        kept: list[PredictionRow] = []
+        by_action: dict[str, list[PredictionRow]] = {}
+        for row in rows:
+            _frame, action, _team, _conf = row
+            if action in self._actions:
+                by_action.setdefault(action, []).append(row)
+            else:
+                kept.append(row)
+
+        for action, action_rows in by_action.items():
+            kept.extend(_nms_rows(action_rows, self._windows.get(action, 6)))
+
+        return sorted(kept, key=lambda row: (row[0], -row[3], row[1], row[2]))
+
+
+class FinalActionTemporalDedupeStep:
+    """Remove duplicates introduced by final label rewrite and team removal."""
+
+    __slots__ = ("_actions", "_windows")
+
+    def __init__(
+        self,
+        actions: frozenset[str] = DEFAULT_FINAL_DEDUPE_ACTIONS,
+        windows: dict[str, int] | None = None,
+    ) -> None:
+        self._actions = actions
+        self._windows = dict(DEFAULT_SAME_ACTION_WINDOWS)
+        self._windows.update(windows or {})
+
+    def __call__(self, rows: list[PredictionRow]) -> list[PredictionRow]:
+        kept: list[PredictionRow] = []
+        by_action: dict[str, list[PredictionRow]] = {}
+        for row in rows:
+            _frame, action, _team, _conf = row
+            if action in self._actions:
+                by_action.setdefault(action, []).append(row)
+            else:
+                kept.append(row)
+
+        for action, action_rows in by_action.items():
+            kept.extend(_nms_rows(action_rows, self._windows.get(action, 6)))
 
         return sorted(kept, key=lambda row: (row[0], -row[3], row[1], row[2]))
 
