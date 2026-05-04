@@ -36,6 +36,10 @@ class AppConfig(BaseModel):
     inference_gaussian_blur_kernel_size: int | None = None
     inference_val_batch_size: int | None = None
     inference_threshold: float | None = None
+    inference_decode_thresholds: dict[str, float] | None = None
+    inference_decode_nms_window_frames: dict[str, int] | None = None
+    inference_use_displacement_refinement: bool | None = None
+    inference_displacement_max_frames: int | None = None
     inference_num_workers: int | None = None
     inference_frame_write_workers: int | None = None
 

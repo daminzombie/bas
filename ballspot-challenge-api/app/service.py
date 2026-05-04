@@ -135,6 +135,10 @@ def build_infer_kw(cfg: AppConfig) -> dict[str, object]:
         "gaussian_blur_kernel_size": cfg.inference_gaussian_blur_kernel_size,
         "val_batch_size": cfg.inference_val_batch_size,
         "inference_threshold": cfg.inference_threshold,
+        "decode_thresholds": cfg.inference_decode_thresholds,
+        "decode_nms_window_frames": cfg.inference_decode_nms_window_frames,
+        "use_displacement_refinement": cfg.inference_use_displacement_refinement,
+        "displacement_max_frames": cfg.inference_displacement_max_frames,
         "device": cfg.inference_device,
         "num_workers": cfg.inference_num_workers if cfg.inference_num_workers is not None else 0,
         "frame_write_workers": cfg.inference_frame_write_workers
@@ -160,6 +164,10 @@ def resolve_merged_params(cfg: AppConfig) -> dict:
         gaussian_blur_kernel_size=kw["gaussian_blur_kernel_size"],
         val_batch_size=kw["val_batch_size"],
         inference_threshold=kw["inference_threshold"],
+        decode_thresholds=kw["decode_thresholds"],
+        decode_nms_window_frames=kw["decode_nms_window_frames"],
+        use_displacement_refinement=kw["use_displacement_refinement"],
+        displacement_max_frames=kw["displacement_max_frames"],
         device=kw["device"],
         extract_frames=False,
     )
