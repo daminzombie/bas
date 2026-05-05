@@ -42,6 +42,7 @@ class AppConfig(BaseModel):
     inference_displacement_max_frames: int | None = None
     inference_num_workers: int | None = None
     inference_frame_write_workers: int | None = None
+    enable_postprocessing: bool = False
 
     cache_dir: str = "/tmp/ballspot_challenge_cache"
     download_timeout_seconds: float = 600.0

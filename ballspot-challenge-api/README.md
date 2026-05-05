@@ -12,6 +12,6 @@ The **`Dockerfile`** lives at the **repository root**; build context copies this
 
 ## Inference output and team information
 
-The underlying `custom-ballspotting` model now produces **team-aware** predictions: each spotting result carries both an `action` label and a `team` (`"left"` / `"right"`). Internally the API pipeline propagates team through the full postprocessing chain as a `PredictionRow = (frame, action, team, confidence)` 4-tuple.
+The underlying `custom-ballspotting` model now produces **team-aware** dudek/SoccerNet BAS predictions: each spotting result carries both an `action` label such as `PASS` / `SHOT` / `FREE KICK` and a `team` (`"left"` / `"right"`). Internally the API pipeline propagates team as a `PredictionRow = (frame, action, team, confidence)` 4-tuple.
 
-The **external API response schema is unchanged** — `FramePrediction` still exposes only `frame`, `action`, and `confidence`. Team is available inside the pipeline for postprocessing steps (e.g. team-specific NMS or label rewrites) but is not forwarded to the caller. If you need team in the response, add a new response field to `schemas.py` and unpack it from the `PredictionRow` in `main.py`.
+The **external API response schema is unchanged** — `FramePrediction` still exposes only `frame`, `action`, and `confidence`. Team is available in `/raw-challenge`. By default `enable_postprocessing` is `false`, so `/challenge` returns the decoded model labels without the older custom action rewrites/cleanup pipeline. Set it to `true` only if you intentionally want those extra API-side steps.

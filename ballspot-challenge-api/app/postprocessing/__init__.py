@@ -32,6 +32,9 @@ from app.postprocessing.types import PostProcessFn, PredictionRow
 
 def build_post_processing_pipeline(_cfg: AppConfig) -> PostProcessFn:
     """Ordered steps applied after ``predictions_to_frames`` before ``FramePrediction``."""
+    if not _cfg.enable_postprocessing:
+        return lambda rows: rows
+
     steps: Sequence[PostProcessFn] = (
         SameActionTemporalDedupeStep(),
         TeamConflictResolutionStep(),
