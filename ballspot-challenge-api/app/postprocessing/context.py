@@ -174,6 +174,30 @@ class ConfusablePairResolutionStep:
             require_same_team=True,
         )
 
+        # A received pass and recovery can be alternate explanations for the same
+        # ball-control moment.  Keep whichever same-team label is more confident.
+        self._resolve_pair(
+            ordered,
+            keep,
+            action_a="pass_received",
+            action_b="recovery",
+            window_frames=8,
+            prefer_b_margin=0.00,
+            require_same_team=True,
+        )
+
+        # Similarly, a pass reception and interception can be two labels for one
+        # received ball.  Keep interception only when it is clearly stronger.
+        self._resolve_pair(
+            ordered,
+            keep,
+            action_a="pass_received",
+            action_b="interception",
+            window_frames=8,
+            prefer_b_margin=0.18,
+            require_same_team=True,
+        )
+
         # Clearance and pass are both kicks, but clearance carries much higher
         # penalty.  Keep clearance only when it is clearly more confident.
         self._resolve_pair(

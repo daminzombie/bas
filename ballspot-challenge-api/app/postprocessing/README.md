@@ -228,7 +228,10 @@ decision. This is intentionally not a generic temporal merge.
 Current pairs:
 
 - `recovery` vs `interception`
+- `pass_received` vs `recovery`
+- `pass_received` vs `interception`
 - `pass` vs `clearance`
+- `pass` vs `shot`
 - `block` vs `save`
 
 ### Recovery vs Interception
@@ -243,6 +246,36 @@ frame 403: interception right 0.56
 ```
 
 Keep `recovery` because the higher-weight `interception` is not clearly stronger.
+
+### Pass Received vs Recovery
+
+Both labels can describe a near-frame ball-control moment after a team gains or keeps
+possession. If a same-team `pass_received` and `recovery` occur within 8 frames, keep
+the higher-confidence action.
+
+Example:
+
+```text
+frame 220: pass_received left 0.57
+frame 226: recovery left 0.64
+```
+
+Keep `recovery`, drop `pass_received`.
+
+### Pass Received vs Interception
+
+Like `recovery`, `pass_received` can conflict with `interception` around the same
+received-ball moment. Since `interception` carries higher scorer risk, keep it only
+when it is clearly stronger.
+
+Example:
+
+```text
+frame 220: pass_received left 0.58
+frame 226: interception left 0.66
+```
+
+Keep `pass_received`, drop `interception`.
 
 ### Pass vs Clearance
 
