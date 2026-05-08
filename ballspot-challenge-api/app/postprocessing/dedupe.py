@@ -65,7 +65,7 @@ class SameActionTemporalDedupeStep:
     def __call__(self, rows: list[PredictionRow]) -> list[PredictionRow]:
         by_key: dict[tuple[str, str], list[PredictionRow]] = {}
         for row in rows:
-            _frame, action, team, _conf = row
+            _frame, action, team, _conf = row[:4]
             by_key.setdefault((action, team), []).append(row)
 
         kept: list[PredictionRow] = []
@@ -100,7 +100,7 @@ class TeamConflictResolutionStep:
         kept: list[PredictionRow] = []
         by_action: dict[str, list[PredictionRow]] = {}
         for row in rows:
-            _frame, action, _team, _conf = row
+            _frame, action, _team, _conf = row[:4]
             if action in self._actions:
                 by_action.setdefault(action, []).append(row)
             else:
@@ -130,7 +130,7 @@ class FinalActionTemporalDedupeStep:
         kept: list[PredictionRow] = []
         by_action: dict[str, list[PredictionRow]] = {}
         for row in rows:
-            _frame, action, _team, _conf = row
+            _frame, action, _team, _conf = row[:4]
             if action in self._actions:
                 by_action.setdefault(action, []).append(row)
             else:

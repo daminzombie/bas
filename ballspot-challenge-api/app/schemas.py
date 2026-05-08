@@ -9,6 +9,7 @@ class FramePrediction(BaseModel):
 
 class RawFramePrediction(FramePrediction):
     team: str
+    timestamp_ms: int = Field(ge=0)
 
 
 class ChallengeFrame(BaseModel):

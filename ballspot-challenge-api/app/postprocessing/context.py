@@ -68,14 +68,13 @@ class GoalShotContextStep:
         shots = [row for row in rows if row[1] == "shot"]
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, team, conf = row
+            frame, action, team, conf = row[:4]
             if action != "goal":
                 out.append(row)
                 continue
 
             has_same_team_shot = any(
-                shot_team == team and abs(shot_frame - frame) <= self._window
-                for shot_frame, _shot_action, shot_team, _shot_conf in shots
+                shot[2] == team and abs(shot[0] - frame) <= self._window for shot in shots
             )
             if has_same_team_shot or conf >= self._keep_without_shot_confidence:
                 out.append(row)
@@ -99,19 +98,15 @@ class SaveShotContextStep:
         shots = [row for row in rows if row[1] == "shot"]
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, team, conf = row
+            frame, action, team, conf = row[:4]
             if action != "save":
                 out.append(row)
                 continue
 
             has_nearby_shot = any(
-                shot_team != team and abs(shot_frame - frame) <= self._window
-                for shot_frame, _shot_action, shot_team, _shot_conf in shots
+                shot[2] != team and abs(shot[0] - frame) <= self._window for shot in shots
             )
-            has_any_shot = any(
-                abs(shot_frame - frame) <= self._window
-                for shot_frame, _shot_action, _shot_team, _shot_conf in shots
-            )
+            has_any_shot = any(abs(shot[0] - frame) <= self._window for shot in shots)
             if has_nearby_shot or (has_any_shot and conf >= 0.70):
                 out.append(row)
             elif conf >= self._keep_without_shot_confidence:
@@ -138,14 +133,13 @@ class FoulRestartContextStep:
         restarts = [row for row in rows if row[1] in self._restart_actions]
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, _team, conf = row
+            frame, action, _team, conf = row[:4]
             if action != "foul":
                 out.append(row)
                 continue
 
             has_future_restart = any(
-                frame < restart_frame <= frame + self._lookahead
-                for restart_frame, _restart_action, _restart_team, _restart_conf in restarts
+                frame < restart[0] <= frame + self._lookahead for restart in restarts
             )
             if has_future_restart or conf >= self._keep_without_restart_confidence:
                 out.append(row)
@@ -251,11 +245,11 @@ class ConfusablePairResolutionStep:
         for idx_a, row_a in ordered:
             if idx_a not in keep or row_a[1] != action_a:
                 continue
-            frame_a, _action_a, team_a, conf_a = row_a
+            frame_a, _action_a, team_a, conf_a = row_a[:4]
             for idx_b, row_b in ordered:
                 if idx_b not in keep or row_b[1] != action_b:
                     continue
-                frame_b, _action_b, team_b, conf_b = row_b
+                frame_b, _action_b, team_b, conf_b = row_b[:4]
                 if abs(frame_b - frame_a) > window_frames:
                     continue
                 if require_same_team and team_a != team_b:
@@ -297,7 +291,7 @@ class DeadBallIntervalCleanupStep:
 
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, _team, _conf = row
+            frame, action, _team, _conf = row[:4]
             inside_dead_ball = any(start < frame < end for start, end in intervals)
             if inside_dead_ball and action not in self._protected_actions:
                 continue
@@ -307,7 +301,7 @@ class DeadBallIntervalCleanupStep:
     def _dead_ball_intervals(self, rows: list[PredictionRow]) -> list[tuple[int, int]]:
         intervals: list[tuple[int, int]] = []
         for idx, row in enumerate(rows):
-            frame, action, _team, _conf = row
+            frame, action, _team, _conf = row[:4]
             if action == "foul":
                 restart = self._first_future_restart(rows, idx, self._foul_restart_actions)
             elif action == "ball_out_of_play":

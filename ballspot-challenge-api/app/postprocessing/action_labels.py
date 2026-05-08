@@ -1,5 +1,7 @@
 """Map raw model labels to challenge API taxonomy (edit mappings here only)."""
 
+from app.postprocessing.types import PredictionRow
+
 
 DEFAULT_ACTION_LABEL_REWRITES: dict[str, str] = {
     "free_kick": "pass",
@@ -17,6 +19,6 @@ class ActionLabelRewriteStep:
     def __init__(self) -> None:
         self._table = dict(DEFAULT_ACTION_LABEL_REWRITES)
 
-    def __call__(self, rows: list[tuple[int, str, str, float]]) -> list[tuple[int, str, str, float]]:
+    def __call__(self, rows: list[PredictionRow]) -> list[PredictionRow]:
         t = self._table
-        return [(frame, t.get(action, action), team, conf) for frame, action, team, conf in rows]
+        return [(frame, t.get(action, action), team, conf, ts) for frame, action, team, conf, ts in rows]
