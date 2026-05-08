@@ -8,10 +8,12 @@ import httpx
 from fastapi import FastAPI, HTTPException
 
 from app.postprocessing import PostProcessFn, build_post_processing_pipeline
+from app.postprocessing.types import PredictionRow
 from app.schemas import (
     ChallengeRequest,
     ChallengeResponse,
     FramePrediction,
+    RawChallengeFramePrediction,
     RawChallengeResponse,
     RawFramePrediction,
 )
@@ -57,7 +59,7 @@ async def health():
 
 def _run_challenge_pipeline(
     payload: ChallengeRequest,
-) -> tuple[list[FramePrediction], list[RawFramePrediction], float]:
+) -> tuple[list[PredictionRow], list[PredictionRow], float]:
     assert _app_config is not None and _hot_model is not None and _post_process is not None
     t0 = time.perf_counter()
     url = payload.video_url
@@ -71,17 +73,31 @@ def _run_challenge_pipeline(
     fps = video_fps(vp)
     rows_before_post = predictions_to_frames(infer_out, fps)
     rows_after_post = _post_process(list(rows_before_post))
-    preds = [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c, _ts in rows_after_post]
-    raw_preds = [
-        RawFramePrediction(frame=f, action=a, team=team, confidence=c, timestamp_ms=ts)
-        for f, a, team, c, ts in rows_before_post
-    ]
     elapsed = time.perf_counter() - t0
-    return preds, raw_preds, elapsed
+    return rows_after_post, rows_before_post, elapsed
+
+
+def _rows_to_challenge_predictions(rows: list[PredictionRow]) -> list[FramePrediction]:
+    return [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c, _ts in rows]
+
+
+def _rows_to_raw_challenge_predictions(rows: list[PredictionRow]) -> list[RawChallengeFramePrediction]:
+    return [
+        RawChallengeFramePrediction(frame=f, action=a, confidence=c, timestamp_ms=ts)
+        for f, a, _team, c, ts in rows
+    ]
+
+
+def _rows_to_raw_frame_predictions(rows: list[PredictionRow]) -> list[RawFramePrediction]:
+    return [
+        RawFramePrediction(frame=f, action=a, team=team, confidence=c, timestamp_ms=ts)
+        for f, a, team, c, ts in rows
+    ]
 
 
 def _process_challenge_sync(payload: ChallengeRequest) -> ChallengeResponse:
-    preds, _, elapsed = _run_challenge_pipeline(payload)
+    rows_after, _, elapsed = _run_challenge_pipeline(payload)
+    preds = _rows_to_challenge_predictions(rows_after)
     return ChallengeResponse(
         challenge_id=payload.challenge_id,
         predictions=preds,
@@ -90,7 +106,9 @@ def _process_challenge_sync(payload: ChallengeRequest) -> ChallengeResponse:
 
 
 def _process_raw_challenge_sync(payload: ChallengeRequest) -> RawChallengeResponse:
-    preds, raw_preds, elapsed = _run_challenge_pipeline(payload)
+    rows_after, rows_before, elapsed = _run_challenge_pipeline(payload)
+    preds = _rows_to_raw_challenge_predictions(rows_after)
+    raw_preds = _rows_to_raw_frame_predictions(rows_before)
     return RawChallengeResponse(
         challenge_id=payload.challenge_id,
         predictions=preds,

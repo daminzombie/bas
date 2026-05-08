@@ -7,6 +7,12 @@ class FramePrediction(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
+class RawChallengeFramePrediction(FramePrediction):
+    """Same fields as ``FramePrediction`` plus wall-clock raster ``timestamp_ms`` (raw-challenge only)."""
+
+    timestamp_ms: int = Field(ge=0)
+
+
 class RawFramePrediction(FramePrediction):
     team: str
     timestamp_ms: int = Field(ge=0)
@@ -46,6 +52,6 @@ class ChallengeResponse(BaseModel):
 
 class RawChallengeResponse(BaseModel):
     challenge_id: str
-    predictions: list[FramePrediction] = Field(default_factory=list)
+    predictions: list[RawChallengeFramePrediction] = Field(default_factory=list)
     raw_predictions: list[RawFramePrediction] = Field(default_factory=list)
     processing_time: float
