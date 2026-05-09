@@ -15,6 +15,7 @@ from custom_ballspotting.actions import NUM_ACTION_CLASSES
 from custom_ballspotting.inference import infer_video, resolve_infer_video_params
 from custom_ballspotting.model.tdeed import CustomTDeedModule
 
+from app.postprocessing.types import PredictionRow
 from app.settings import AppConfig
 
 logger = logging.getLogger(__name__)
@@ -91,8 +92,8 @@ def video_fps(video_path: str) -> float:
         cap.release()
 
 
-def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[tuple[int, str, str, float, int]]:
-    """Map ``infer_video`` JSON rows to ``(frame_index, label, team, confidence, timestamp_ms)``.
+def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[PredictionRow]:
+    """Map ``infer_video`` JSON rows to postprocessing tuples.
 
     ``timestamp_ms`` is the model ``position`` field (milliseconds along the video timeline).
     Uses ``raw["fps"]`` when present (same value as :func:`scores_to_predictions`
@@ -108,16 +109,50 @@ def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[tuple[int, 
     if not math.isfinite(fps) or fps <= 0:
         fps = 25.0
 
-    out: list[tuple[int, str, str, float, int]] = []
+    out: list[PredictionRow] = []
     for p in raw.get("predictions", []):
         pos_ms = int(p["position"])
         # Invert scores_to_predictions: position = int(frame_idx / fps * 1000)
         frame = max(0, int(round(pos_ms / 1000.0 * fps)))
-        confidence = float(p["confidence"])
-        confidence = max(0.0, min(1.0, confidence))
+        action_confidence = max(
+            0.0,
+            min(1.0, float(p.get("action_confidence", p["confidence"]))),
+        )
+        team_confidence = max(0.0, min(1.0, float(p.get("team_confidence", 1.0))))
+        joint_confidence = max(
+            0.0,
+            min(1.0, float(p.get("joint_confidence", action_confidence * team_confidence))),
+        )
+        team_confidences = p.get("team_confidences") or {}
+        left_team_confidence = max(
+            0.0,
+            min(
+                1.0,
+                float(team_confidences.get("left", 1.0 if p.get("team") == "left" else 0.0)),
+            ),
+        )
+        right_team_confidence = max(
+            0.0,
+            min(
+                1.0,
+                float(team_confidences.get("right", 1.0 if p.get("team") == "right" else 0.0)),
+            ),
+        )
         team = str(p.get("team", "left"))
         ts_ms = max(0, pos_ms)
-        out.append((frame, str(p["label"]), team, confidence, ts_ms))
+        out.append(
+            (
+                frame,
+                str(p["label"]),
+                team,
+                action_confidence,
+                ts_ms,
+                team_confidence,
+                left_team_confidence,
+                right_team_confidence,
+                joint_confidence,
+            )
+        )
     out.sort(key=lambda t: (t[0], -t[3]))
     return out
 

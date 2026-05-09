@@ -21,4 +21,7 @@ class ActionLabelRewriteStep:
 
     def __call__(self, rows: list[PredictionRow]) -> list[PredictionRow]:
         t = self._table
-        return [(frame, t.get(action, action), team, conf, ts) for frame, action, team, conf, ts in rows]
+        return [
+            (frame, t.get(action, action), team, conf, ts, *extra)
+            for frame, action, team, conf, ts, *extra in rows
+        ]

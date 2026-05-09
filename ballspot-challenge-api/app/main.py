@@ -78,20 +78,36 @@ def _run_challenge_pipeline(
 
 
 def _rows_to_challenge_predictions(rows: list[PredictionRow]) -> list[FramePrediction]:
-    return [FramePrediction(frame=f, action=a, confidence=c) for f, a, _team, c, _ts in rows]
+    return [FramePrediction(frame=row[0], action=row[1], confidence=row[3]) for row in rows]
 
 
 def _rows_to_raw_challenge_predictions(rows: list[PredictionRow]) -> list[RawChallengeFramePrediction]:
     return [
-        RawChallengeFramePrediction(frame=f, action=a, confidence=c, timestamp_ms=ts)
-        for f, a, _team, c, ts in rows
+        RawChallengeFramePrediction(
+            frame=row[0],
+            action=row[1],
+            confidence=row[3],
+            timestamp_ms=row[4],
+        )
+        for row in rows
     ]
 
 
 def _rows_to_raw_frame_predictions(rows: list[PredictionRow]) -> list[RawFramePrediction]:
     return [
-        RawFramePrediction(frame=f, action=a, team=team, confidence=c, timestamp_ms=ts)
-        for f, a, team, c, ts in rows
+        RawFramePrediction(
+            frame=row[0],
+            action=row[1],
+            team=row[2],
+            confidence=row[3],
+            timestamp_ms=row[4],
+            action_confidence=row[3],
+            team_confidence=row[5],
+            left_team_confidence=row[6],
+            right_team_confidence=row[7],
+            joint_confidence=row[8],
+        )
+        for row in rows
     ]
 
 

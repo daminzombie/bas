@@ -26,7 +26,7 @@ DEFAULT_CONFIDENCE_FLOORS: dict[str, float] = {
     "take_on": 0.45,
     "substitution": 0.75,
     "block": 0.50,
-    "aerial_duel": 0.40,
+    "aerial_duel": 0.50,
     "shot": 0.50,
     "save": 0.60,
     "foul": 0.65,

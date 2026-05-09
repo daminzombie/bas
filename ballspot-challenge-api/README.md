@@ -12,6 +12,29 @@ The **`Dockerfile`** lives at the **repository root**; build context copies this
 
 ## Inference output and team information
 
-The underlying `custom-ballspotting` model now produces **team-aware** predictions: each spotting result carries both an `action` label and a `team` (`"left"` / `"right"`). Internally the API pipeline propagates team through the full postprocessing chain as a `PredictionRow = (frame, action, team, confidence)` 4-tuple.
+The underlying `custom-ballspotting` model uses separate action and per-action team heads. Each spotting result carries:
 
-The **external API response schema is unchanged** — `FramePrediction` still exposes only `frame`, `action`, and `confidence`. Team is available inside the pipeline for postprocessing steps (e.g. team-specific NMS or label rewrites) but is not forwarded to the caller. If you need team in the response, add a new response field to `schemas.py` and unpack it from the `PredictionRow` in `main.py`.
+- `label`
+- selected `team` (`"left"` / `"right"`)
+- `action_confidence`
+- selected `team_confidence`
+- both-side `team_confidences`
+- `joint_confidence = action_confidence * team_confidence`
+
+Internally the API pipeline propagates team and confidence details through the full postprocessing chain as:
+
+```text
+PredictionRow = (
+  frame,
+  action,
+  team,
+  action_confidence,
+  timestamp_ms,
+  selected_team_confidence,
+  left_team_confidence,
+  right_team_confidence,
+  joint_confidence,
+)
+```
+
+The **external `/challenge` response schema is unchanged** — `FramePrediction` still exposes only `frame`, `action`, and `confidence`, where `confidence` is the action confidence. Team is available inside the pipeline for postprocessing steps and is exposed by the raw debug response. Team conflict resolution ranks left/right duplicates with `joint_confidence` so a weak team attribution does not inflate duplicate handling.

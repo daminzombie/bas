@@ -46,10 +46,14 @@ runs after the rewrite to catch duplicates introduced by final schema formatting
 Each postprocessing step receives rows shaped as:
 
 ```text
-(frame, action, team, confidence)
+(frame, action, team, action_confidence, timestamp_ms,
+ selected_team_confidence, left_team_confidence, right_team_confidence,
+ joint_confidence)
 ```
 
-Team is still available at this stage, even though the final API response drops it.
+Team is still available at this stage, even though the final `/challenge` response
+drops it. `joint_confidence` is used for resolving left/right duplicates;
+action-facing thresholds and final challenge confidence use `action_confidence`.
 Use team where it helps avoid false merges, for example `goal` should normally be
 near a same-team `shot`, while `save` should normally be near an opposite-team
 `shot`.
@@ -93,9 +97,10 @@ File: `dedupe.py`
 
 Purpose: remove same-action opposite-team duplicates before the final API drops team.
 
-The model can predict the right action moment for both team heads. Since the final
-challenge schema does not include team, keeping both usually means one can match and
-the other becomes an unmatched penalty.
+The action head emits one action confidence and the team head can still be uncertain
+about left vs right. Since the final challenge schema does not include team, keeping
+nearby opposite-team copies usually means one can match and the other becomes an
+unmatched penalty.
 
 Example:
 
@@ -104,7 +109,7 @@ frame 382: corner right 0.39
 frame 382: corner left 0.32
 ```
 
-Keep the right-team prediction and drop the lower-confidence left-team copy.
+Keep the right-team prediction and drop the lower joint-confidence left-team copy.
 
 `aerial_duel` is intentionally excluded because the definition allows one event per
 involved player, and close opposite-team duel predictions can be valid.

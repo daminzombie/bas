@@ -107,7 +107,7 @@ class TeamConflictResolutionStep:
                 kept.append(row)
 
         for action, action_rows in by_action.items():
-            kept.extend(_nms_rows(action_rows, self._windows.get(action, 6)))
+            kept.extend(_nms_rows(action_rows, self._windows.get(action, 6), score_index=8))
 
         return sorted(kept, key=lambda row: (row[0], -row[3], row[1], row[2]))
 
@@ -142,8 +142,13 @@ class FinalActionTemporalDedupeStep:
         return sorted(kept, key=lambda row: (row[0], -row[3], row[1], row[2]))
 
 
-def _nms_rows(rows: list[PredictionRow], window_frames: int) -> list[PredictionRow]:
-    ranked = sorted(rows, key=lambda row: row[3], reverse=True)
+def _nms_rows(
+    rows: list[PredictionRow],
+    window_frames: int,
+    *,
+    score_index: int = 3,
+) -> list[PredictionRow]:
+    ranked = sorted(rows, key=lambda row: row[score_index], reverse=True)
     kept: list[PredictionRow] = []
     for row in ranked:
         frame = row[0]
