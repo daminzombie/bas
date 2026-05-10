@@ -226,7 +226,6 @@ def load_hot_model(cfg: AppConfig):
         features_model_name=merged["features_model_name"],
         temporal_shift_mode=merged["temporal_shift_mode"],
         gaussian_blur_ks=merged["gaussian_blur_kernel_size"],
-        head_dropout=merged["head_dropout"],
     )
     model.load_all(cfg.model_checkpoint_path)
     model.to(device)
