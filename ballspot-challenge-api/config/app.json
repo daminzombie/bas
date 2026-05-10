@@ -1,5 +1,5 @@
 {
-  "model_checkpoint_path": "../../custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260509_165103/epochs/epoch_003.pt",
+  "model_checkpoint_path": "../../custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260509_165103/epochs/epoch_004.pt",
   "cache_dir": "../../tmp/ballspot_challenge_cache",
   "download_timeout_seconds": 600,
   "inference_clip_frames_count": 100,
