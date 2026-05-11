@@ -28,7 +28,9 @@ SAVE_KEEP_WITHOUT_SHOT_CONFIDENCE = 0.90
 # evidence instead of requiring a near-frame set piece.
 FOUL_RESTART_LOOKAHEAD_FRAMES = int(15.0 * FPS_ASSUMPTION)
 FOUL_KEEP_WITHOUT_RESTART_CONFIDENCE = 0.85
-FOUL_RESTART_ACTIONS = frozenset({"free_kick", "ball_out_of_play"})
+FOUL_RESTART_ACTIONS = frozenset(
+    {"free_kick", "ball_out_of_play_clear", "ball_out_of_play_distant"}
+)
 
 # Once play has stopped, model detections between the stoppage and restart are usually
 # players moving/placing the ball rather than scored in-game actions.
@@ -41,7 +43,8 @@ BALL_OUT_RESTART_ACTIONS = frozenset({"free_kick", "throw_in", "goal_kick", "cor
 DEAD_BALL_PROTECTED_ACTIONS = frozenset(
     {
         "foul",
-        "ball_out_of_play",
+        "ball_out_of_play_clear",
+        "ball_out_of_play_distant",
         "free_kick",
         "throw_in",
         "goal_kick",
@@ -292,7 +295,7 @@ class DeadBallIntervalCleanupStep:
             frame, action, _conf, _ts = row
             if action == "foul":
                 restart = self._first_future_restart(rows, idx, self._foul_restart_actions)
-            elif action == "ball_out_of_play":
+            elif action in {"ball_out_of_play_clear", "ball_out_of_play_distant"}:
                 restart = self._first_future_restart(rows, idx, self._ball_out_restart_actions)
             else:
                 continue

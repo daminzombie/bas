@@ -8,6 +8,8 @@ DEFAULT_ACTION_LABEL_REWRITES: dict[str, str] = {
     "goal_kick": "pass",
     "corner": "pass",
     "throw_in": "pass",
+    "ball_out_of_play_clear": "ball_out_of_play",
+    "ball_out_of_play_distant": "ball_out_of_play",
 }
 
 

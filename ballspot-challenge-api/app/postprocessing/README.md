@@ -305,7 +305,7 @@ Purpose: remove non-game detections between a stoppage and its restart.
 Supported intervals:
 
 - `foul -> free_kick`
-- `ball_out_of_play -> free_kick | throw_in | goal_kick | corner`
+- `ball_out_of_play_clear | ball_out_of_play_distant -> free_kick | throw_in | goal_kick | corner`
 
 Events between those anchors are often players moving, setting the ball, or other
 non-game activity. They can become unmatched predictions and hurt score.
@@ -325,7 +325,8 @@ interval. The `foul` and `free_kick` are preserved.
 Protected actions:
 
 - `foul`
-- `ball_out_of_play`
+- `ball_out_of_play_clear`
+- `ball_out_of_play_distant`
 - `free_kick`
 - `throw_in`
 - `goal_kick`
@@ -393,6 +394,8 @@ free_kick -> pass
 goal_kick -> pass
 corner -> pass
 throw_in -> pass
+ball_out_of_play_clear -> ball_out_of_play
+ball_out_of_play_distant -> ball_out_of_play
 ```
 
 Do not move this before accuracy cleanup. Earlier steps need to know the difference
@@ -416,6 +419,13 @@ or:
 ```text
 frame 500: throw_in -> pass
 frame 502: pass     -> pass
+```
+
+or:
+
+```text
+frame 700: ball_out_of_play_clear   -> ball_out_of_play
+frame 704: ball_out_of_play_distant -> ball_out_of_play
 ```
 
 It should stay after `ActionLabelRewriteStep`. It excludes `aerial_duel` by default.
