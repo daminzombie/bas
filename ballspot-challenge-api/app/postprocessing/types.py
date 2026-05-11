@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from typing import TypeAlias
 
-# (frame, action, team, action_confidence, timestamp_ms, selected_team_confidence,
-#  left_team_confidence, right_team_confidence, joint_confidence)
-PredictionRow: TypeAlias = tuple[int, str, str, float, int, float, float, float, float]
+# (frame_index, action_label, confidence, timestamp_ms)
+PredictionRow: TypeAlias = tuple[int, str, float, int]
 PostProcessFn: TypeAlias = Callable[[list[PredictionRow]], list[PredictionRow]]

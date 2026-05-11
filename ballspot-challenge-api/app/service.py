@@ -99,7 +99,6 @@ def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[PredictionR
     Uses ``raw["fps"]`` when present (same value as :func:`scores_to_predictions`
     used inside ``infer_video``), so frame indices match the scoring raster.
     ``video_probe_fps`` is a fallback if ``fps`` is missing (older callers).
-    Team defaults to ``"left"`` for any prediction that does not carry a ``"team"`` field.
     """
     inferred = raw.get("fps")
     if inferred is not None:
@@ -114,46 +113,13 @@ def predictions_to_frames(raw: dict, video_probe_fps: float) -> list[PredictionR
         pos_ms = int(p["position"])
         # Invert scores_to_predictions: position = int(frame_idx / fps * 1000)
         frame = max(0, int(round(pos_ms / 1000.0 * fps)))
-        action_confidence = max(
+        confidence = max(
             0.0,
             min(1.0, float(p.get("action_confidence", p["confidence"]))),
         )
-        team_confidence = max(0.0, min(1.0, float(p.get("team_confidence", 1.0))))
-        joint_confidence = max(
-            0.0,
-            min(1.0, float(p.get("joint_confidence", action_confidence * team_confidence))),
-        )
-        team_confidences = p.get("team_confidences") or {}
-        left_team_confidence = max(
-            0.0,
-            min(
-                1.0,
-                float(team_confidences.get("left", 1.0 if p.get("team") == "left" else 0.0)),
-            ),
-        )
-        right_team_confidence = max(
-            0.0,
-            min(
-                1.0,
-                float(team_confidences.get("right", 1.0 if p.get("team") == "right" else 0.0)),
-            ),
-        )
-        team = str(p.get("team", "left"))
         ts_ms = max(0, pos_ms)
-        out.append(
-            (
-                frame,
-                str(p["label"]),
-                team,
-                action_confidence,
-                ts_ms,
-                team_confidence,
-                left_team_confidence,
-                right_team_confidence,
-                joint_confidence,
-            )
-        )
-    out.sort(key=lambda t: (t[0], -t[3]))
+        out.append((frame, str(p["label"]), confidence, ts_ms))
+    out.sort(key=lambda t: (t[0], -t[2]))
     return out
 
 

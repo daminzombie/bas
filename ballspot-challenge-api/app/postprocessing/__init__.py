@@ -11,10 +11,8 @@ from app.postprocessing.action_labels import (
 from app.postprocessing.dedupe import (
     DEFAULT_FINAL_DEDUPE_ACTIONS,
     DEFAULT_SAME_ACTION_WINDOWS,
-    DEFAULT_TEAM_CONFLICT_ACTIONS,
     FinalActionTemporalDedupeStep,
     SameActionTemporalDedupeStep,
-    TeamConflictResolutionStep,
 )
 from app.postprocessing.context import (
     ConfusablePairResolutionStep,
@@ -34,13 +32,12 @@ def build_post_processing_pipeline(_cfg: AppConfig) -> PostProcessFn:
     """Ordered steps applied after ``predictions_to_frames`` before ``FramePrediction``."""
     steps: Sequence[PostProcessFn] = (
         SameActionTemporalDedupeStep(),
-        TeamConflictResolutionStep(),
+        PerActionConfidenceFloorStep(),
+        ConfusablePairResolutionStep(),
         GoalShotContextStep(),
         SaveShotContextStep(),
         FoulRestartContextStep(),
-        ConfusablePairResolutionStep(),
         DeadBallIntervalCleanupStep(),
-        PerActionConfidenceFloorStep(),
         ActionLabelRewriteStep(),
         FinalActionTemporalDedupeStep(),
     )
@@ -60,7 +57,6 @@ __all__ = [
     "DEFAULT_CONFIDENCE_FLOORS",
     "DEFAULT_FINAL_DEDUPE_ACTIONS",
     "DEFAULT_SAME_ACTION_WINDOWS",
-    "DEFAULT_TEAM_CONFLICT_ACTIONS",
     "ConfusablePairResolutionStep",
     "DeadBallIntervalCleanupStep",
     "FinalActionTemporalDedupeStep",
@@ -69,7 +65,6 @@ __all__ = [
     "PerActionConfidenceFloorStep",
     "SaveShotContextStep",
     "SameActionTemporalDedupeStep",
-    "TeamConflictResolutionStep",
     "PredictionRow",
     "PostProcessFn",
     "build_post_processing_pipeline",

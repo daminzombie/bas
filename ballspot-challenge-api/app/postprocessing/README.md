@@ -25,51 +25,46 @@ The pipeline is assembled in `__init__.py`:
 
 ```text
 SameActionTemporalDedupeStep
--> TeamConflictResolutionStep
+-> PerActionConfidenceFloorStep
+-> ConfusablePairResolutionStep
 -> GoalShotContextStep
 -> SaveShotContextStep
 -> FoulRestartContextStep
--> ConfusablePairResolutionStep
 -> DeadBallIntervalCleanupStep
--> PerActionConfidenceFloorStep
 -> ActionLabelRewriteStep
 -> FinalActionTemporalDedupeStep
 ```
 
-Most accuracy rules must run before final label rewriting because the rewrite maps
-set pieces such as `free_kick`, `goal_kick`, `corner`, and `throw_in` to final API
-`pass`. The one exception is `FinalActionTemporalDedupeStep`, which intentionally
-runs after the rewrite to catch duplicates introduced by final schema formatting.
+The confidence floor and confusable-pair pass run before context rules so goal/save/foul
+support is based on predictions that are still plausible output candidates. Most
+accuracy rules still run before final label rewriting because the rewrite maps set
+pieces such as `free_kick`, `goal_kick`, `corner`, and `throw_in` to final API `pass`.
+The one exception is `FinalActionTemporalDedupeStep`, which intentionally runs after
+the rewrite to catch duplicates introduced by final schema formatting.
 
 ## Data Shape
 
 Each postprocessing step receives rows shaped as:
 
 ```text
-(frame, action, team, action_confidence, timestamp_ms,
- selected_team_confidence, left_team_confidence, right_team_confidence,
- joint_confidence)
+(frame, action, confidence, timestamp_ms)
 ```
 
-Team is still available at this stage, even though the final `/challenge` response
-drops it. `joint_confidence` is used for resolving left/right duplicates;
-action-facing thresholds and final challenge confidence use `action_confidence`.
-Use team where it helps avoid false merges, for example `goal` should normally be
-near a same-team `shot`, while `save` should normally be near an opposite-team
-`shot`.
+Context and confidence steps use **`confidence`** (action softmax at the decoded peak).
+Temporal dedupe ranks candidates by **`confidence`** within per-action windows.
 
 ## SameActionTemporalDedupeStep
 
 File: `dedupe.py`
 
-Purpose: remove repeated peaks for the same raw `(action, team)` without merging
-different valid actions.
+Purpose: remove repeated peaks for the same raw `action` without merging different
+valid actions.
 
 Example:
 
 ```text
-frame 100: pass left 0.82
-frame 102: pass left 0.76
+frame 100: pass 0.82
+frame 102: pass 0.76
 ```
 
 These are likely duplicate peaks from one model confidence hill, so only the
@@ -78,8 +73,8 @@ highest-confidence one survives.
 Counter-example:
 
 ```text
-frame 100: pass left 0.82
-frame 110: pass_received left 0.80
+frame 100: pass 0.82
+frame 110: pass_received 0.80
 ```
 
 This is a valid fast sequence and is not deduped because the actions differ.
@@ -91,61 +86,33 @@ Tune:
 Keep windows small for fast ball actions like `pass`, `pass_received`, and
 `interception`.
 
-## TeamConflictResolutionStep
-
-File: `dedupe.py`
-
-Purpose: remove same-action opposite-team duplicates before the final API drops team.
-
-The action head emits one action confidence and the team head can still be uncertain
-about left vs right. Since the final challenge schema does not include team, keeping
-nearby opposite-team copies usually means one can match and the other becomes an
-unmatched penalty.
-
-Example:
-
-```text
-frame 382: corner right 0.39
-frame 382: corner left 0.32
-```
-
-Keep the right-team prediction and drop the lower joint-confidence left-team copy.
-
-`aerial_duel` is intentionally excluded because the definition allows one event per
-involved player, and close opposite-team duel predictions can be valid.
-
-Tune:
-
-- `DEFAULT_TEAM_CONFLICT_ACTIONS`
-- `DEFAULT_SAME_ACTION_WINDOWS`
-
 ## GoalShotContextStep
 
 File: `context.py`
 
 Purpose: reduce high-penalty false `goal` predictions.
 
-Domain rule: a `goal` should have a nearby same-team `shot`. Medium-confidence goals
-without shot support are risky because `goal` has the highest scorer penalty.
+Domain rule: a `goal` should have a nearby `shot`. Medium-confidence goals without
+shot support are risky because `goal` has the highest scorer penalty.
 
 Example dropped:
 
 ```text
-frame 1000: goal left 0.62
-no same-team shot nearby
+frame 1000: goal 0.62
+no shot nearby
 ```
 
 Example kept:
 
 ```text
-frame 998: shot left 0.81
-frame 1000: goal left 0.66
+frame 998: shot 0.81
+frame 1000: goal 0.66
 ```
 
 High-confidence escape hatch:
 
 ```text
-frame 1000: goal left 0.95
+frame 1000: goal 0.95
 no shot nearby
 ```
 
@@ -162,20 +129,20 @@ File: `context.py`
 
 Purpose: reduce high-penalty false `save` predictions.
 
-Domain rule: a `save` should be near a `shot`, preferably from the opposite team.
+Domain rule: a `save` should be near a `shot`.
 
 Example dropped:
 
 ```text
-frame 500: save right 0.58
+frame 500: save 0.58
 no shot nearby
 ```
 
 Example kept:
 
 ```text
-frame 492: shot left 0.76
-frame 505: save right 0.61
+frame 492: shot 0.76
+frame 505: save 0.61
 ```
 
 Tune:
@@ -254,15 +221,14 @@ Keep `recovery` because the higher-weight `interception` is not clearly stronger
 
 ### Pass Received vs Recovery
 
-Both labels can describe a near-frame ball-control moment after a team gains or keeps
-possession. If a same-team `pass_received` and `recovery` occur within 8 frames, keep
-the higher-confidence action.
+Both labels can describe a near-frame ball-control moment. If a `pass_received` and
+`recovery` occur within 8 frames, keep the higher-confidence action.
 
 Example:
 
 ```text
-frame 220: pass_received left 0.57
-frame 226: recovery left 0.64
+frame 220: pass_received 0.57
+frame 226: recovery 0.64
 ```
 
 Keep `recovery`, drop `pass_received`.
@@ -276,22 +242,22 @@ when it is clearly stronger.
 Example:
 
 ```text
-frame 220: pass_received left 0.58
-frame 226: interception left 0.66
+frame 220: pass_received 0.58
+frame 226: interception 0.66
 ```
 
 Keep `pass_received`, drop `interception`.
 
 ### Pass vs Clearance
 
-`clearance` has higher penalty and requires defensive intent. If close to a same-team
+`clearance` has higher penalty and requires defensive intent. If it is close to a
 `pass`, keep `clearance` only when it is clearly stronger.
 
 Example:
 
 ```text
-frame 100: pass left 0.63
-frame 102: clearance left 0.66
+frame 100: pass 0.63
+frame 102: clearance 0.66
 ```
 
 Keep `pass`, drop `clearance`.
@@ -305,8 +271,8 @@ stronger to beat the lower-risk `pass`.
 Example:
 
 ```text
-frame 508: pass right 0.46
-frame 510: shot right 0.62
+frame 508: pass 0.46
+frame 510: shot 0.62
 ```
 
 Keep `shot`, drop `pass`.
@@ -314,8 +280,8 @@ Keep `shot`, drop `pass`.
 Counter-example:
 
 ```text
-frame 508: pass right 0.80
-frame 510: shot right 0.52
+frame 508: pass 0.80
+frame 510: shot 0.52
 ```
 
 Keep `pass`, drop `shot`.
@@ -329,7 +295,6 @@ Tune inside `_resolve_pair()` calls:
 
 - `window_frames`
 - `prefer_b_margin`
-- `require_same_team`
 
 ## DeadBallIntervalCleanupStep
 
@@ -437,13 +402,13 @@ between normal passes and set-piece restarts.
 
 File: `dedupe.py`
 
-Purpose: remove final-schema duplicates after label rewrite and team removal.
+Purpose: remove final-schema duplicates after label rewrite.
 
 This catches cases where separate raw labels collapse to the same final action:
 
 ```text
-frame 382: corner right -> pass
-frame 382: corner left  -> pass
+frame 382: corner -> pass
+frame 383: corner -> pass
 ```
 
 or:
@@ -453,8 +418,7 @@ frame 500: throw_in -> pass
 frame 502: pass     -> pass
 ```
 
-It should stay after `ActionLabelRewriteStep`. Like `TeamConflictResolutionStep`, it
-excludes `aerial_duel` by default.
+It should stay after `ActionLabelRewriteStep`. It excludes `aerial_duel` by default.
 
 Tune:
 

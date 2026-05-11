@@ -45,7 +45,7 @@ git commit -m "Bump custom-ballspotting submodule"
 - **Python** ≥ 3.10
 - **CUDA** + GPU PyTorch for inference (or the Docker image below)
 - **`ballspot-challenge-api/config/app.json`** — committed with production-ready defaults (no checkpoint env vars)
-- The **`.pt`** named in **`model_checkpoint_path`** must exist locally — typically **`custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260429_193215_best.pt`** (weights are usually not committed; download before run). Keep its sibling **`.metadata.json`** beside it so inference can rebuild the matching separate action/team-head architecture.
+- The **`.pt`** named in **`model_checkpoint_path`** must exist locally — typically **`custom-ballspotting/checkpoints/custom_posttrain_from_custom_20260429_193215_best.pt`** (weights are usually not committed; download before run). Keep its sibling **`.metadata.json`** beside it so inference can rebuild the matching action-only head architecture.
 
 ---
 
@@ -75,7 +75,7 @@ Optional: bind-mount **`config/app.json`** to override tuning without rebuilding
 
 1. Obtain **`custom_posttrain_from_custom_20260429_193215_best.pt`** and its **`.metadata.json`** sidecar (or change **`model_checkpoint_path`** in **`config/app.json`** if you standardize another filename).
 2. Place both files under **`custom-ballspotting/checkpoints/`** matching the configured path before **local run** or **Docker run** (`*.pt` skipped in image build unless you relax `.dockerignore`).
-3. Use checkpoints trained with the current separate action/team heads. Older single joint-head custom-ballspotting checkpoints are not load-compatible with the current API package.
+3. Use checkpoints trained with the current **action-only** `custom-ballspotting` head. Legacy two-head checkpoints cannot be loaded with `load_all()` on the current module; retrain or initialize from backbone weights only.
 
 ---
 

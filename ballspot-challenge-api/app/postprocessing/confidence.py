@@ -47,5 +47,5 @@ class PerActionConfidenceFloorStep:
         return [
             row
             for row in rows
-            if row[3] >= self._floors.get(row[1], 0.0)
+            if row[2] >= self._floors.get(row[1], 0.0)
         ]

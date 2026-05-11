@@ -1,7 +1,7 @@
 """Context-aware postprocessing for scorer-risk reduction.
 
 These steps intentionally run on the raw model taxonomy, before the final API label
-rewrite removes team and maps set pieces to ``pass``.  The scorer penalizes unmatched
+rewrite maps set pieces to ``pass``.  The scorer penalizes unmatched
 predictions by action weight, so the rules below mostly remove expensive predictions
 when the surrounding soccer context does not support them.
 """
@@ -68,15 +68,13 @@ class GoalShotContextStep:
         shots = [row for row in rows if row[1] == "shot"]
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, team, conf = row[:4]
+            frame, action, conf, _ts = row
             if action != "goal":
                 out.append(row)
                 continue
 
-            has_same_team_shot = any(
-                shot[2] == team and abs(shot[0] - frame) <= self._window for shot in shots
-            )
-            if has_same_team_shot or conf >= self._keep_without_shot_confidence:
+            has_nearby_shot = any(abs(shot[0] - frame) <= self._window for shot in shots)
+            if has_nearby_shot or conf >= self._keep_without_shot_confidence:
                 out.append(row)
         return out
 
@@ -98,18 +96,13 @@ class SaveShotContextStep:
         shots = [row for row in rows if row[1] == "shot"]
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, team, conf = row[:4]
+            frame, action, conf, _ts = row
             if action != "save":
                 out.append(row)
                 continue
 
-            has_nearby_shot = any(
-                shot[2] != team and abs(shot[0] - frame) <= self._window for shot in shots
-            )
             has_any_shot = any(abs(shot[0] - frame) <= self._window for shot in shots)
-            if has_nearby_shot or (has_any_shot and conf >= 0.70):
-                out.append(row)
-            elif conf >= self._keep_without_shot_confidence:
+            if has_any_shot or conf >= self._keep_without_shot_confidence:
                 out.append(row)
         return out
 
@@ -133,7 +126,7 @@ class FoulRestartContextStep:
         restarts = [row for row in rows if row[1] in self._restart_actions]
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, _team, conf = row[:4]
+            frame, action, conf, _ts = row
             if action != "foul":
                 out.append(row)
                 continue
@@ -155,7 +148,7 @@ class ConfusablePairResolutionStep:
         keep = set(range(len(rows)))
         ordered = sorted(enumerate(rows), key=lambda item: item[1][0])
 
-        # Recovery excludes active interceptions.  For near same-team predictions,
+        # Recovery excludes active interceptions.  For near-frame predictions,
         # keep interception only if it is clearly stronger; otherwise prefer the
         # lower-penalty recovery.
         self._resolve_pair(
@@ -165,11 +158,10 @@ class ConfusablePairResolutionStep:
             action_b="interception",
             window_frames=8,
             prefer_b_margin=0.18,
-            require_same_team=True,
         )
 
         # A received pass and recovery can be alternate explanations for the same
-        # ball-control moment.  Keep whichever same-team label is more confident.
+        # ball-control moment.  Keep whichever label is more confident.
         self._resolve_pair(
             ordered,
             keep,
@@ -177,7 +169,6 @@ class ConfusablePairResolutionStep:
             action_b="recovery",
             window_frames=8,
             prefer_b_margin=0.00,
-            require_same_team=True,
         )
 
         # Similarly, a pass reception and interception can be two labels for one
@@ -189,7 +180,6 @@ class ConfusablePairResolutionStep:
             action_b="interception",
             window_frames=8,
             prefer_b_margin=0.18,
-            require_same_team=True,
         )
 
         # Clearance and pass are both kicks, but clearance carries much higher
@@ -201,7 +191,6 @@ class ConfusablePairResolutionStep:
             action_b="clearance",
             window_frames=8,
             prefer_b_margin=0.20,
-            require_same_team=True,
         )
 
         # A shot is visually a kick/contact event, so the model can emit a nearby
@@ -214,7 +203,6 @@ class ConfusablePairResolutionStep:
             action_b="shot",
             window_frames=6,
             prefer_b_margin=0.10,
-            require_same_team=True,
         )
 
         # Block/save both require a shot.  If both are present for the same stop,
@@ -226,7 +214,6 @@ class ConfusablePairResolutionStep:
             action_b="save",
             window_frames=8,
             prefer_b_margin=0.00,
-            require_same_team=False,
         )
 
         return [row for idx, row in enumerate(rows) if idx in keep]
@@ -240,25 +227,26 @@ class ConfusablePairResolutionStep:
         action_b: str,
         window_frames: int,
         prefer_b_margin: float,
-        require_same_team: bool,
     ) -> None:
         for idx_a, row_a in ordered:
             if idx_a not in keep or row_a[1] != action_a:
                 continue
-            frame_a, _action_a, team_a, conf_a = row_a[:4]
-            for idx_b, row_b in ordered:
-                if idx_b not in keep or row_b[1] != action_b:
-                    continue
-                frame_b, _action_b, team_b, conf_b = row_b[:4]
-                if abs(frame_b - frame_a) > window_frames:
-                    continue
-                if require_same_team and team_a != team_b:
-                    continue
-                if conf_b >= conf_a + prefer_b_margin:
-                    keep.discard(idx_a)
-                else:
-                    keep.discard(idx_b)
-                break
+            frame_a, conf_a = row_a[0], row_a[2]
+            candidates_b = [
+                (idx_b, row_b)
+                for idx_b, row_b in ordered
+                if idx_b in keep
+                and row_b[1] == action_b
+                and abs(row_b[0] - frame_a) <= window_frames
+            ]
+            if not candidates_b:
+                continue
+            idx_b, row_b = max(candidates_b, key=lambda item: item[1][2])
+            conf_b = row_b[2]
+            if conf_b >= conf_a + prefer_b_margin:
+                keep.discard(idx_a)
+            else:
+                keep.discard(idx_b)
 
 
 class DeadBallIntervalCleanupStep:
@@ -284,14 +272,14 @@ class DeadBallIntervalCleanupStep:
         self._max_interval = max_interval_frames
 
     def __call__(self, rows: list[PredictionRow]) -> list[PredictionRow]:
-        ordered = sorted(rows, key=lambda row: (row[0], -row[3]))
+        ordered = sorted(rows, key=lambda row: (row[0], -row[2]))
         intervals = self._dead_ball_intervals(ordered)
         if not intervals:
             return rows
 
         out: list[PredictionRow] = []
         for row in rows:
-            frame, action, _team, _conf = row[:4]
+            frame, action, _conf, _ts = row
             inside_dead_ball = any(start < frame < end for start, end in intervals)
             if inside_dead_ball and action not in self._protected_actions:
                 continue
@@ -301,7 +289,7 @@ class DeadBallIntervalCleanupStep:
     def _dead_ball_intervals(self, rows: list[PredictionRow]) -> list[tuple[int, int]]:
         intervals: list[tuple[int, int]] = []
         for idx, row in enumerate(rows):
-            frame, action, _team, _conf = row[:4]
+            frame, action, _conf, _ts = row
             if action == "foul":
                 restart = self._first_future_restart(rows, idx, self._foul_restart_actions)
             elif action == "ball_out_of_play":

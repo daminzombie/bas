@@ -13,14 +13,10 @@ class RawChallengeFramePrediction(FramePrediction):
     timestamp_ms: int = Field(ge=0)
 
 
-class RawFramePrediction(FramePrediction):
-    team: str
-    timestamp_ms: int = Field(ge=0)
-    action_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    team_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    left_team_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
-    right_team_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
-    joint_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+class RawFramePrediction(RawChallengeFramePrediction):
+    """Pre-postprocessing row aligned with :data:`PredictionRow` (same as challenge + timestamp)."""
+
+    pass
 
 
 class ChallengeFrame(BaseModel):
